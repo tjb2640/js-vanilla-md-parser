@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+    <!--
+        Test page to render the output of the parsed markdown
+        Quick and cheap
+        (Actual parse logic is imported from parseclass.js, instantiated as MarkdownParser())
+    -->
+    <head>
+        <title>MDParse Test</title>
+        <script type="text/javascript" src="parseclass.js"></script>
+        <style type="text/css">
+            .wrap {
+                border: 1px solid black;
+                margin: 32px auto;
+                padding: 32px;
+                width: 1100px;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="raw" class="wrap"></div>
+        <div id="parsed" class="wrap"></div>
+        <script type="text/javascript">
+            const text = "# Hello there   \n \n" +
+                "## h2? ## # # #\n" +
+                "### h3? ## # # #\n" +
+                "#### h4? ## # # #\n" +
+                "This is my markdown.\n" +
+                "It is very nice.\n" +
+                "Setext h1?\n" +
+                "=\n" +
+                "Setext h2?\n" +
+                "----\n" +
+                "did that work? please work?\n" +
+                ">quote\n"+
+                ">continues here\n"+
+                "># Heading in a quote\n"+
+                ">> More stuff under the quote\n"+
+                "\n"+
+                "\n";
+            const parser = new MarkdownParser();
+            document.getElementById("raw").innerHTML = "<pre>" + text + "</pre>";
+            document.getElementById("parsed").innerHTML = parser.parseMarkdown(text);
+        </script>
+    </body>
+</html>
