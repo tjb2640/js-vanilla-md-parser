@@ -1,16 +1,41 @@
 let MarkdownParser = (() => {
 
+    // TODO: See in which places a `${format}` might be slightly faster than a + concat
+
     // Reassigned in this.reset()
     let state = {};
 
     /**
-     * Represents information about block classes (headers, blockquotes, etc.) and provides parsers
+     * Represents inline styling like **bold** or ~~strikethrough~~
+     * 
+     * The order in which the objects appear in the array here is the order in which they're parsed out.
+     * In general, don't include similar characters in the .tagReplacement that are already in the .original
+     * (With markup that stipulation shouldn't matter anyway)
+     */
+    const INLINE = [
+        {
+            original: '**',
+            tagReplacement: 'strong',
+            parse: (raw_wrapped) => {},
+        },
+    ];
+
+    const SANITIZE_REPLACEMENTS = {
+        ['<']: '&lt;',
+        ['>']: '&gt;',
+    };
+
+    /**
+     * Represents information about leaf and container block classes (headers, blockquotes, etc.) and provides parsers
      * 
      * Each `parse` function returns a 2-length array: [0] = parsed text, [1] = last modified line index in raw_lines
      */
     const BLOCK = {
         blockquote: {
-            parse: (raw_lines, i, line_start_pos, parsed_lines, matched) => { /* handled elsewhere TODO: where? */ },
+            parse: (raw_lines, i, line_start_pos, parsed_lines, matched) => { /* handled inside parseMarkdown */ },
+        },
+        code_container_marker: {
+            parse: (raw_lines, i, line_start_pos, parsed_lines, matched) => { /* handled inside parseMarkdown */ },
         },
         break: {
             parse: (raw_lines, i, line_start_pos, parsed_lines, matched) => ['<br />', i],
@@ -18,14 +43,15 @@ let MarkdownParser = (() => {
         atx_heading: {
             parse: (raw_lines, i, line_start_pos, parsed_lines, matched) => {
                 const len = matched.trim().length
-                return [wrap('h' + len, raw_lines[i].substring(line_start_pos).replace(new RegExp(matched), '').trim()), i];
+                return [wrapWithTag('h' + len, raw_lines[i].substring(line_start_pos)
+                    .replace(new RegExp(matched), '').trim()), i];
             },
         },
         setext_heading: {
             parse: (raw_lines, i, line_start_pos, parsed_lines, matched) => {
                 const tag = matched.indexOf('=') > -1 ? 'h1' : 'h2';
                 if (parsed_lines.length > 0) {
-                    parsed_lines[parsed_lines.length-1] = wrap(tag, parsed_lines[parsed_lines.length-1]);
+                    parsed_lines[parsed_lines.length-1] = wrapWithTag(tag, parsed_lines[parsed_lines.length-1]);
                 }
             },
         },
@@ -40,6 +66,7 @@ let MarkdownParser = (() => {
      * [0] = regex matcher, [1] = associated `BLOCK` object w/parser
      */
     const BLOCK_MATCHERS = [
+        [/```/g, BLOCK.code_container_marker], // The start or end of a code container.
         [/^\s*#{1,6}/g, BLOCK.atx_heading], // ### ATX-style heading with 1-6 levels
         [/(^=+\s*$)|(^-+\s*$)/g, BLOCK.setext_heading], // setext-style heading (prev. line underscored with === or ---)
         [/^(>+\s*)/g, BLOCK.blockquote],
@@ -47,17 +74,24 @@ let MarkdownParser = (() => {
 
 
 
+    function escapeHTMLChars(text = '') {
+        text = text.replace('&', '&amp;');
+        for (const k in SANITIZE_REPLACEMENTS) {
+            text = text.replace(k, SANITIZE_REPLACEMENTS[k]);
+        }
+        return text;
+    }
+
     /**
      * Wrap the text using the given HTML tag.
-     * TODO: sanitize text before wrapping.
      * 
      * @param {string} [tag='p']
      * @param {string} [text='']
      * @return {*} 
      */
-    function wrap(tag = 'p', text = '') {
+    function wrapWithTag(tag = 'p', text = '') {
         // Concatenation here is mildly quicker than a full string.format due to .format's extra overhead...
-        return '<' + tag + '>' + text + '</' + tag + '>';
+        return '<' + tag + '>' + escapeHTMLChars(text) + '</' + tag + '>';
     }
 
     function isEmpty(str = '') {
@@ -100,6 +134,9 @@ let MarkdownParser = (() => {
     MarkdownParser.prototype.reset = () => {
         this.state = {
             blockquoteLevel: 0,
+            insideCodeContainer: false,
+            listLevel: 0,
+            listType: null,
         }
     }
 
@@ -117,6 +154,7 @@ let MarkdownParser = (() => {
         }
 
         const raw_lines = raw_markdown.split(/\r?\n/);
+        const not_a_paragraph = {};
         const parsed_lines = new Array();
 
         let k = 0;
@@ -124,9 +162,29 @@ let MarkdownParser = (() => {
             let line = raw_lines[k].trimEnd();
             let nest_offset = 0;
             let [block_class, matched] = getBlockInfo(line);
-
             // At some point at this position, should parse inline-style things like ***bold*** text
             // (allowing them to span multiple lines)
+
+
+            // For container code blocks, let's also go ahead and handle them manually here.
+            // TODO: handle container code blocks within nested lists or higher-level block elems
+            if (block_class == BLOCK.code_container_marker) {
+                this.state.insideCodeContainer = !this.state.insideCodeContainer;
+                if (this.state.insideCodeContainer) {
+                    const language = line.substring(3);
+                    // TODO: class format here should be a rule later
+                    parsed_lines.push('<pre' + (isEmpty(language) ? '>' : ' class="lang-' + language + '">'));
+                } else {
+                    parsed_lines.push('</pre>');
+                }
+                k++;
+                continue;
+            } else if (this.state.insideCodeContainer) {
+                parsed_lines.push(/* ''.repeat(this.state.listLevel * 2) + */ escapeHTMLChars(raw_lines[k]) + '\n');
+                not_a_paragraph[parsed_lines.length - 1] = true;
+                k++;
+                continue;
+            }
 
             // For blockquotes, we can just handle them outside of the BLOCK_MATCHERS
             // this will likely be easier since they (may) span multiple lines and
@@ -144,7 +202,7 @@ let MarkdownParser = (() => {
             } else if (this.state.blockquoteLevel > 0) {
                 parsed_lines.push('</blockquote>'.repeat(this.state.blockquoteLevel));
             }
-
+            
             // Some parse functions (cough cough setext headings) might need to manipulate previous parsed_lines
             // instead of returning new ones
             const result = block_class.parse(raw_lines, k, nest_offset, parsed_lines, matched);
@@ -162,8 +220,8 @@ let MarkdownParser = (() => {
         // At this point, lines that could have possibly been modified by setext/post stuff have
         // already been handled
         for (let i = 0; i < parsed_lines.length; i++) {
-            if (parsed_lines[i].indexOf('<') == -1) {
-                parsed_lines[i] = wrap('p', parsed_lines[i]);
+            if (!not_a_paragraph[i] && parsed_lines[i].indexOf('<') == -1) {
+                parsed_lines[i] = wrapWithTag('p', parsed_lines[i]);
             }
         }
 
@@ -173,8 +231,7 @@ let MarkdownParser = (() => {
         }
 
         //const glue = '<br />' + (addNewlines ? '\n' : '');
-        const glue = '\n';
-        return parsed_lines.join(glue);
+        return parsed_lines.join('');
     }
 
     return MarkdownParser;
