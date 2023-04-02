@@ -7,40 +7,45 @@
     -->
     <head>
         <title>MDParse Test</title>
-        <script type="text/javascript" src="parseclass.js"></script>
-        <style type="text/css">
-            .wrap {
-                border: 1px solid black;
-                margin: 32px auto;
-                padding: 32px;
-                width: 1100px;
-            }
-        </style>
+        <script src="parseclass.js" type="text/javascript"></script>
+        <link href="css/style.css" rel="stylesheet" type="text/css" />
     </head>
     <body>
-        <div id="raw" class="wrap"></div>
-        <div id="parsed" class="wrap"></div>
+        <div id="raw" class="container-wrap"></div>
+        <div id="parsed" class="container-wrap"></div>
         <script type="text/javascript">
-            const text = "# Hello there   \n \n" +
-                "## h2? ## # # #\n" +
-                "### h3? ## # # #\n" +
-                "#### h4? ## # # #\n" +
-                "This is my markdown.\n" +
-                "It is very nice.\n" +
-                "Setext h1?\n" +
-                "=\n" +
-                "Setext h2?\n" +
-                "----\n" +
-                "did that work? please work?\n" +
-                ">quote\n"+
-                ">continues here\n"+
-                "># Heading in a quote\n"+
-                ">> More stuff under the quote\n"+
-                "\n"+
-                "\n";
+            const text1 = [
+                "# Heading 1",
+                "", // break
+                "## Heading 2 ## ### ##",
+                "", // break
+                "### Heading 3",
+                "### Heading 4",
+                "This is my markdown.",
+                "This is also my markdown.",
+                "3rd p tag.",
+                "Setext h1",
+                "=",
+                "Setext h2?",
+                "----",
+                "Another paragraph here # Don't parse this side as a heading",
+                ">Quote here",
+                ">Continues here",
+                "># Heading in a quote",
+                ">> More underneath that heading in another level",
+                "", "",
+                "```js",
+                "// how to repeat a string 3 times",
+                "let i = 2;",
+                "i++;",
+                "console.log('<p>'.repeat(i));",
+                "```",
+                "", "",
+
+            ];
             const parser = new MarkdownParser();
             document.getElementById("raw").innerHTML = "<pre>" + text + "</pre>";
-            document.getElementById("parsed").innerHTML = parser.parseMarkdown(text);
+            document.getElementById("parsed").innerHTML = parser.parseMarkdown(text1.join('\n'));
         </script>
     </body>
 </html>
