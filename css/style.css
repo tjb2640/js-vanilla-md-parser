@@ -1,0 +1,48 @@
+blockquote::before {
+    border-bottom: 2px dotted #222;
+    content: 'blockquote element';
+    font-size: 1.618em;
+    display: block;
+}
+blockquote {
+    border-radius: 1em;
+    box-shadow: 0 0 2em rgba(0, 0, 0, 0.2);
+    margin: 0.5em;
+    padding: 1em;
+}
+
+blockquote blockquote {
+    background: #ddd;
+    background: rgba(138, 201, 208, 0.3);
+    border: 0.35em solid #ccc;
+    border-radius: 1em;
+    box-shadow: 0 0 1em rgba(138, 201, 208, 0.3);
+}
+
+blockquote blockquote::before{
+    content: 'straight outta 1995';
+}
+
+.lang-js {
+    background-color: #222;
+    border-radius: 0.5em;
+    color: #fff;
+    padding: 1em;
+}
+
+.lang-js::before {
+    border-bottom: 1px dotted #888;
+    content: 'ESWhatever';
+    display: block;
+    font-style: oblique;
+    line-height: 2em;
+    margin-bottom: 1em;
+    width: 100%;
+}
+
+.container-wrap {
+    border: 1px solid black;
+    margin: 32px auto;
+    padding: 32px;
+    width: 1100px;
+}
