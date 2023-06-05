@@ -9,14 +9,33 @@ let MarkdownParser = (() => {
      * Represents inline styling like **bold** or ~~strikethrough~~
      * 
      * The order in which the objects appear in the array here is the order in which they're parsed out.
-     * In general, don't include similar characters in the .tagReplacement that are already in the .original
+     * In general, don't include similar characters in the .tag that are already in the .original
      * (With markup that stipulation shouldn't matter anyway)
+     * 
+     * TODO: for strong, strong, and em, use a workaround for Safari for lookbehind. Safari for whatever reason still doesn't
+     * support lookbehind!
      */
     const INLINE = [
+        // Following four will lazy match groups of text wrapped in .original and negative lookbehind for a backslash
         {
             original: '**',
-            tagReplacement: 'strong',
-            parse: (raw_wrapped) => {},
+            matcher: /(?<!\\)[\*]{2}(.+?)(?<!\\)[\*]{2}/g, 
+            tag: 'strong',
+        },
+        {
+            original: '__',
+            matcher: /(?<!\\)[_]{2}(.+?)(?<!\\)[_]{2}/g,
+            tag: 'strong',
+        },
+        {
+            original: '*',
+            matcher: /(?<!\\)[\*]{1}(.+?)(?<!\\)[\*]{1}/g,
+            tag: 'em',
+        },
+        {
+            original: '_',
+            matcher: /(?<!\\)[_]{1}(.+?)(?<!\\)[_]{1}/g,
+            tag: 'em',
         },
     ];
 
@@ -219,18 +238,26 @@ let MarkdownParser = (() => {
         // Check plain lines and assign them paragraph tags.
         // At this point, lines that could have possibly been modified by setext/post stuff have
         // already been handled
+        // Also do inline elements here (strong, underline, etc)
         for (let i = 0; i < parsed_lines.length; i++) {
             if (!not_a_paragraph[i] && parsed_lines[i].indexOf('<') == -1) {
                 parsed_lines[i] = wrapWithTag('p', parsed_lines[i]);
             }
+            for (const k of INLINE) {
+                // TODO suboptimal packing logic
+                const matches = [...parsed_lines[i].matchAll(k.matcher)]
+                if (matches.length > 0) {
+                    for (const match of matches) {
+                        parsed_lines[i] = (parsed_lines[i] + '').replace(match[0], wrapWithTag(k.tag, match[1]))
+                    }
+                }
+            }
+
         }
 
-        // Close out multiple-line blocks if they're still open?
         if (this.state.blockquoteLevel > 0) {
             parsed_lines.push('</blockquote>'.repeat(this.state.blockquoteLevel));
         }
-
-        //const glue = '<br />' + (addNewlines ? '\n' : '');
         return parsed_lines.join('');
     }
 

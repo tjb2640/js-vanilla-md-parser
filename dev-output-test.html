@@ -33,6 +33,8 @@
                 ">Continues here",
                 "># Heading in a quote",
                 ">> More underneath that heading in another level",
+                ">> This text will be **bold** so that's **cool**",
+                ">> This text should be emphasized like *this*",
                 "", "",
                 "```js",
                 "// how to repeat a string 3 times",
@@ -44,7 +46,7 @@
 
             ];
             const parser = new MarkdownParser();
-            document.getElementById("raw").innerHTML = "<pre>" + text1 + "</pre>";
+            document.getElementById("raw").innerHTML = "<pre>" + text1.join('<br />') + "</pre>";
             document.getElementById("parsed").innerHTML = parser.parseMarkdown(text1.join('\n'));
         </script>
     </body>
